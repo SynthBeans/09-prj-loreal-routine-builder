@@ -254,3 +254,29 @@ body {
 .site-footer a:hover {
   text-decoration: underline;
 }
+.chat-message {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+.chat-message.user {
+  text-align: right;
+  color: #e3a535;
+}
+
+.chat-message.bot {
+  text-align: left;
+  color: #ff003b;
+}
+
+.chat-message.error {
+  text-align: center;
+  color: red;
+  font-style: italic;
+}
+
+.chat-message.thinking {
+  font-style: italic;
+  color: #999;
+}

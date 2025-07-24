@@ -1,4 +1,4 @@
-// Updated script.js with chat fixes
+// Updated script.js with chat fixes and 'Thinking...' indicator
 
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
@@ -95,6 +95,8 @@ generateRoutineBtn.addEventListener("click", async () => {
   }
 
   chatWindow.innerHTML += `<div class="chat-message user"><strong>You:</strong> Generate a routine with selected products.</div>`;
+  chatWindow.innerHTML += `<div class="chat-message thinking">🤖 Thinking...</div>`;
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 
   const res = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
     method: "POST",
@@ -103,6 +105,7 @@ generateRoutineBtn.addEventListener("click", async () => {
   });
 
   const data = await res.json();
+  document.querySelector(".chat-message.thinking")?.remove();
 
   if (data && data.choices && data.choices[0]) {
     chatWindow.innerHTML += `<div class="chat-message bot"><strong>Bot:</strong> ${data.choices[0].message.content}</div>`;
@@ -121,7 +124,9 @@ chatForm.addEventListener("submit", async (e) => {
   if (!userText) return;
 
   chatWindow.innerHTML += `<div class="chat-message user"><strong>You:</strong> ${userText}</div>`;
+  chatWindow.innerHTML += `<div class="chat-message thinking">🤖 Thinking...</div>`;
   input.value = "";
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 
   const res = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
     method: "POST",
@@ -130,6 +135,7 @@ chatForm.addEventListener("submit", async (e) => {
   });
 
   const data = await res.json();
+  document.querySelector(".chat-message.thinking")?.remove();
 
   if (data && data.choices && data.choices[0]) {
     chatWindow.innerHTML += `<div class="chat-message bot"><strong>Bot:</strong> ${data.choices[0].message.content}</div>`;
