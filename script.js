@@ -4,7 +4,10 @@ const productsContainer = document.getElementById("productsContainer");
 const chatWindow = document.getElementById("chatWindow");
 const chatForm = document.getElementById("chatForm");
 
-// Load the product data
+// To store selected products
+let selectedProducts = [];
+
+// Load the product data from JSON
 async function loadProducts() {
   const response = await fetch("products.json");
   const data = await response.json();
@@ -43,13 +46,12 @@ categoryFilter.addEventListener("change", async (e) => {
 });
 
 // Allow product selection and display the selected items
-let selectedProducts = [];
-
 productsContainer.addEventListener("click", (e) => {
   if (e.target.closest(".product-card")) {
     const productCard = e.target.closest(".product-card");
     const productId = productCard.dataset.id;
     const productName = productCard.querySelector("h3").textContent;
+    const productBrand = productCard.querySelector("p").textContent;
 
     // Check if product is already selected
     const isSelected = selectedProducts.some(
@@ -64,7 +66,7 @@ productsContainer.addEventListener("click", (e) => {
       productCard.classList.remove("selected");
     } else {
       // Add product to the selected list
-      selectedProducts.push({ id: productId, name: productName });
+      selectedProducts.push({ id: productId, name: productName, brand: productBrand });
       productCard.classList.add("selected");
     }
 
@@ -105,23 +107,42 @@ function updateSelectedProducts() {
 
 // Generate routine (this part assumes you have an API call function that generates the routine)
 document.getElementById("generateRoutine").addEventListener("click", async () => {
+  console.log("Selected products:", selectedProducts);  // Debugging line
+
   if (selectedProducts.length === 0) {
     chatWindow.innerHTML = "Please select some products first.";
     return;
   }
 
-  // Example: Sending selected products to the worker for generating the routine
+  // Log the data being sent to the Worker
+  console.log("Sending selected products to Worker:", selectedProducts);
+
+  // Sending data to the Cloudflare Worker
   const response = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      products: selectedProducts,
+      products: selectedProducts,  // Ensure products are properly sent
     }),
   });
 
-  const result = await response.json();
+  // Log the raw response from the Worker
+  const textResponse = await response.text();
+  console.log("Raw response from Worker:", textResponse);  // Log the raw response
+
+  // If no valid response, show a message
+  if (!textResponse || textResponse.trim() === "") {
+    chatWindow.innerHTML = "No response from the API.";
+    return;
+  }
+
+  // Parse the response as JSON
+  const result = JSON.parse(textResponse);
+  console.log("Parsed response:", result);
+
+  // Check if the result contains the expected data
   if (result && result.choices) {
     chatWindow.innerHTML = result.choices[0].message.content;
   } else {
