@@ -1,176 +1,147 @@
-// DOM Elements
+// Updated script.js with chat fixes
+
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
-const chatWindow = document.getElementById("chatWindow");
 const chatForm = document.getElementById("chatForm");
+const chatWindow = document.getElementById("chatWindow");
+const selectedProductsList = document.getElementById("selectedProductsList");
+const generateRoutineBtn = document.getElementById("generateRoutine");
 
-// To store selected products
-let selectedProducts = [];
+let allProducts = [];
+let selectedProducts = JSON.parse(localStorage.getItem("selectedProducts")) || [];
 
-// Load the product data from JSON
-async function loadProducts() {
-  const response = await fetch("products.json");
-  const data = await response.json();
-  return data.products;
+function saveSelectedProducts() {
+  localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
 }
 
-// Display the products in the grid
-function displayProducts(products) {
-  productsContainer.innerHTML = products
+function renderSelectedProducts() {
+  selectedProductsList.innerHTML = selectedProducts
     .map(
-      (product) => `
-    <div class="product-card" data-id="${product.id}">
-      <img src="${product.image}" alt="${product.name}" />
-      <div class="product-info">
-        <h3>${product.name}</h3>
-        <p>${product.brand}</p>
-        <p class="category">${product.category}</p>
-      </div>
-    </div>`
+      (p, i) => `
+        <div class="selected-item">
+          ${p.name} <button onclick="removeSelected(${i})">&times;</button>
+        </div>
+      `
     )
     .join("");
 }
 
-// Filter products by category
-categoryFilter.addEventListener("change", async (e) => {
-  const products = await loadProducts();
-  const selectedCategory = e.target.value;
+function removeSelected(index) {
+  selectedProducts.splice(index, 1);
+  saveSelectedProducts();
+  renderSelectedProducts();
+  highlightSelected();
+}
 
-  // Filter products based on selected category
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory
-  );
-
-  // Display filtered products
-  displayProducts(filteredProducts);
-});
-
-// Allow product selection and display the selected items
-productsContainer.addEventListener("click", (e) => {
-  if (e.target.closest(".product-card")) {
-    const productCard = e.target.closest(".product-card");
-    const productId = productCard.dataset.id;
-    const productName = productCard.querySelector("h3").textContent;
-    const productBrand = productCard.querySelector("p").textContent;
-
-    // Check if product is already selected
-    const isSelected = selectedProducts.some(
-      (product) => product.id === productId
-    );
-
-    if (isSelected) {
-      // Remove product from the selection if already selected
-      selectedProducts = selectedProducts.filter(
-        (product) => product.id !== productId
-      );
-      productCard.classList.remove("selected");
-    } else {
-      // Add product to the selected list
-      selectedProducts.push({ id: productId, name: productName, brand: productBrand });
-      productCard.classList.add("selected");
-    }
-
-    // Update the "Selected Products" section
-    updateSelectedProducts();
-  }
-});
-
-// Update the "Selected Products" section
-function updateSelectedProducts() {
-  const selectedProductsList = document.getElementById("selectedProductsList");
-
-  // Clear the list
-  selectedProductsList.innerHTML = "";
-
-  // Populate the list with selected products
-  selectedProducts.forEach((product) => {
-    const productItem = document.createElement("div");
-    productItem.classList.add("selected-product-item");
-    productItem.textContent = product.name;
-
-    // Add a "remove" button for each selected product
-    const removeButton = document.createElement("button");
-    removeButton.textContent = "Remove";
-    removeButton.addEventListener("click", () => {
-      selectedProducts = selectedProducts.filter(
-        (selectedProduct) => selectedProduct.id !== product.id
-      );
-      updateSelectedProducts();
-      const productCard = document.querySelector(`.product-card[data-id="${product.id}"]`);
-      if (productCard) productCard.classList.remove("selected");
-    });
-
-    productItem.appendChild(removeButton);
-    selectedProductsList.appendChild(productItem);
+function highlightSelected() {
+  document.querySelectorAll(".product-card").forEach((card) => {
+    const productName = card.dataset.name;
+    const isSelected = selectedProducts.find((p) => p.name === productName);
+    card.classList.toggle("selected", isSelected);
   });
 }
 
-// Generate routine (this part assumes you have an API call function that generates the routine)
-document.getElementById("generateRoutine").addEventListener("click", async () => {
-  console.log("Selected products:", selectedProducts);  // Debugging line
+async function loadProducts() {
+  const res = await fetch("products.json");
+  const data = await res.json();
+  allProducts = data.products;
+}
 
-  if (selectedProducts.length === 0) {
-    chatWindow.innerHTML = "Please select some products first.";
-    return;
-  }
+function displayProducts(category) {
+  const filtered = allProducts.filter((p) => p.category === category);
+  productsContainer.innerHTML = filtered
+    .map(
+      (product) => `
+      <div class="product-card" data-name="${product.name}">
+        <img src="${product.image}" alt="${product.name}" />
+        <div class="product-info">
+          <h3>${product.name}</h3>
+          <p>${product.brand}</p>
+        </div>
+      </div>
+    `
+    )
+    .join("");
 
-  // Log the data being sent to the Worker
-  console.log("Sending selected products to Worker:", selectedProducts);
+  document.querySelectorAll(".product-card").forEach((card) => {
+    const name = card.dataset.name;
+    const product = filtered.find((p) => p.name === name);
 
-  // Sending data to the Cloudflare Worker
-  const response = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      products: selectedProducts,  // Ensure products are properly sent
-    }),
+    card.addEventListener("click", () => {
+      const index = selectedProducts.findIndex((p) => p.name === name);
+      if (index === -1) {
+        selectedProducts.push(product);
+      } else {
+        selectedProducts.splice(index, 1);
+      }
+      saveSelectedProducts();
+      renderSelectedProducts();
+      highlightSelected();
+    });
   });
 
-  // Log the raw response from the Worker
-  const textResponse = await response.text();
-  console.log("Raw response from Worker:", textResponse);  // Log the raw response
+  highlightSelected();
+}
 
-  // If no valid response, show a message
-  if (!textResponse || textResponse.trim() === "") {
-    chatWindow.innerHTML = "No response from the API.";
+categoryFilter.addEventListener("change", (e) => {
+  displayProducts(e.target.value);
+});
+
+// Generate routine button
+generateRoutineBtn.addEventListener("click", async () => {
+  if (selectedProducts.length === 0) {
+    chatWindow.innerHTML += `<div class="chat-message error">⚠️ Please select some products first.</div>`;
     return;
   }
 
-  // Parse the response as JSON
-  const result = JSON.parse(textResponse);
-  console.log("Parsed response:", result);
+  chatWindow.innerHTML += `<div class="chat-message user"><strong>You:</strong> Generate a routine with selected products.</div>`;
 
-  // Check if the result contains the expected data
-  if (result && result.choices) {
-    chatWindow.innerHTML = result.choices[0].message.content;
+  const res = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ products: selectedProducts })
+  });
+
+  const data = await res.json();
+
+  if (data && data.choices && data.choices[0]) {
+    chatWindow.innerHTML += `<div class="chat-message bot"><strong>Bot:</strong> ${data.choices[0].message.content}</div>`;
   } else {
-    chatWindow.innerHTML = "No valid response from the API.";
+    chatWindow.innerHTML += `<div class="chat-message error">⚠️ No valid response from the API.</div>`;
   }
+
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 });
 
-// Handle chat form submission (this sends user input to the worker)
+// Chat input handler
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const userInputText = document.getElementById("userInput").value;
+  const input = document.getElementById("userInput");
+  const userText = input.value.trim();
+  if (!userText) return;
 
-  const response = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
+  chatWindow.innerHTML += `<div class="chat-message user"><strong>You:</strong> ${userText}</div>`;
+  input.value = "";
+
+  const res = await fetch("https://workerthingyhelpme.xxsynth.workers.dev/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt: userInputText,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: userText })
   });
 
-  const result = await response.json();
-  if (result && result.choices) {
-    chatWindow.innerHTML += `<p>${result.choices[0].message.content}</p>`;
+  const data = await res.json();
+
+  if (data && data.choices && data.choices[0]) {
+    chatWindow.innerHTML += `<div class="chat-message bot"><strong>Bot:</strong> ${data.choices[0].message.content}</div>`;
   } else {
-    chatWindow.innerHTML += "<p>No valid response from the API.</p>";
+    chatWindow.innerHTML += `<div class="chat-message error">⚠️ No valid response from the API.</div>`;
   }
 
-  document.getElementById("userInput").value = "";
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 });
+
+// Initial load
+(async () => {
+  await loadProducts();
+  renderSelectedProducts();
+})();
